@@ -96,9 +96,10 @@ namespace Xamarin.Pulley.Ios
         
         private UIViewController _DrawerContentViewController;
 
-        private UIViewController DrawerContentViewController
+        public UIViewController DrawerContentViewController
         {
-            set
+            get => _DrawerContentViewController;
+            private set
             {
                 _DrawerContentViewController?.WillMoveToParentViewController(null);
                 _DrawerContentViewController?.View?.RemoveFromSuperview();
@@ -142,6 +143,7 @@ namespace Xamarin.Pulley.Ios
         
         public PulleyPosition DrawerPosition
         {
+            get => _DrawerPosition;
             set
             {
                 _DrawerPosition = value;
@@ -182,6 +184,7 @@ namespace Xamarin.Pulley.Ios
         
         public nfloat DrawerTopInset
         {
+            get => _DrawerTopInset;
             set
             {
                 if (_DrawerTopInset != value && IsViewLoaded)
@@ -194,6 +197,7 @@ namespace Xamarin.Pulley.Ios
         
         public UIEdgeInsets PanelInsets
         {
+            get => _PanelInsets;
             set
             {
                 if (_PanelInsets != value && IsViewLoaded)
@@ -206,6 +210,7 @@ namespace Xamarin.Pulley.Ios
         
         public nfloat PanelWidth
         {
+            get => _PanelWidth;
             set
             {
                 if (_PanelWidth != value && IsViewLoaded)
@@ -218,6 +223,7 @@ namespace Xamarin.Pulley.Ios
         
         public UIEdgeInsets CompactInsets
         {
+            get => _CompactInsets;
             set
             {
                 if (_CompactInsets != value && IsViewLoaded)
@@ -230,6 +236,7 @@ namespace Xamarin.Pulley.Ios
         
         public nfloat CompactWidth
         {
+            get => _CompactWidth;
             set
             {
                 if (_CompactWidth != value && IsViewLoaded)
@@ -242,6 +249,7 @@ namespace Xamarin.Pulley.Ios
         
         public nfloat DrawerCornerRadius
         {
+            get => _DrawerCornerRadius;
             set
             {
                 if (_DrawerCornerRadius != value && IsViewLoaded)
@@ -259,6 +267,7 @@ namespace Xamarin.Pulley.Ios
         
         public float ShadowOpacity
         {
+            get => _ShadowOpacity;
             set
             {
                 if (Math.Abs(_ShadowOpacity - value) > 0.01 && IsViewLoaded)
@@ -275,6 +284,7 @@ namespace Xamarin.Pulley.Ios
         
         public nfloat ShadowRadius
         {
+            get => _ShadowRadius;
             set
             {
                 if (_ShadowRadius != value && IsViewLoaded)
@@ -291,6 +301,7 @@ namespace Xamarin.Pulley.Ios
         
         public CGSize ShadowOffset
         {
+            get => _ShadowOffset;
             set
             {
                 if (_ShadowOffset != value && IsViewLoaded)
@@ -307,6 +318,7 @@ namespace Xamarin.Pulley.Ios
 
         public UIColor BackgroundDimmingColor
         {
+            get => _BackgroundDimmingColor;
             set
             {
                 _BackgroundDimmingColor = value;
@@ -320,6 +332,7 @@ namespace Xamarin.Pulley.Ios
 
         public nfloat BackgroundDimmingOpacity
         {
+            get => _BackgroundDimmingOpacity;
             set
             {
                 _BackgroundDimmingOpacity = value;
@@ -333,6 +346,7 @@ namespace Xamarin.Pulley.Ios
 
         public bool DelaysContentTouches
         {
+            get => _DelaysContentTouches;
             set
             {
                 _DelaysContentTouches = value;
@@ -345,6 +359,7 @@ namespace Xamarin.Pulley.Ios
 
         public bool CanCancelContentTouches
         {
+            get => _CanCancelContentTouches;
             set
             {
                 _CanCancelContentTouches = value;
@@ -359,6 +374,7 @@ namespace Xamarin.Pulley.Ios
 
         public PulleyDisplayMode DisplayMode
         {
+            get => _DisplayMode;
             set
             {
                 if (_DisplayMode !=value && IsViewLoaded)
@@ -371,6 +387,7 @@ namespace Xamarin.Pulley.Ios
 
         public PulleyPanelCornerPlacement PanelCornerPlacement
         {
+            get => _PanelCornerPlacement;
             set
             {
                 if (_PanelCornerPlacement !=value && IsViewLoaded)
@@ -383,6 +400,7 @@ namespace Xamarin.Pulley.Ios
 
         public PulleyCompactCornerPlacement CompactCornerPlacement
         {
+            get => _CompactCornerPlacement;
             set
             {
                 if (_CompactCornerPlacement !=value && IsViewLoaded)
@@ -395,6 +413,7 @@ namespace Xamarin.Pulley.Ios
 
         public bool AllowsUserDrawerPositionChange
         {
+            get => _AllowsUserDrawerPositionChange;
             set
             {
                 _AllowsUserDrawerPositionChange = value;
@@ -414,6 +433,7 @@ namespace Xamarin.Pulley.Ios
 
         public bool AdjustDrawerHorizontalInsetToSafeArea
         {
+            get => _AdjustDrawerHorizontalInsetToSafeArea;
             set
             {
                 _AdjustDrawerHorizontalInsetToSafeArea = value;
@@ -482,6 +502,7 @@ namespace Xamarin.Pulley.Ios
         
         public PulleyPosition[] SupportedPositions
         {
+            get => _SupportedPositions;
             set
             {
                 if (!IsViewLoaded)
@@ -517,6 +538,7 @@ namespace Xamarin.Pulley.Ios
 
         public PulleyDisplayMode CurrentDisplayMode
         {
+            get => _CurrentDisplayMode;
             set
             {
                 if(value != _CurrentDisplayMode && IsViewLoaded)
