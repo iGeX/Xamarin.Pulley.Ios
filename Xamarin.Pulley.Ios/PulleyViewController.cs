@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using CoreAnimation;
 using CoreGraphics;
@@ -13,18 +12,77 @@ namespace Xamarin.Pulley.Ios
     public class PulleyViewController : UIViewController, IPulleyDrawerViewControllerDelegate, 
         IPulleyPassthroughScrollViewDelegate, IUIScrollViewDelegate 
     {
-        public static nfloat PulleyDefaultCollapsedHeight { get; set; } = 68.0f;
+        public static bool AtLeastIos10 { get; } = UIDevice.CurrentDevice.CheckSystemVersion(10, 0);
         
-        public static nfloat PulleyDefaultPartialRevealHeight { get; set; } = 264.0f;
+        public static bool AtLeastIos11 { get; } = UIDevice.CurrentDevice.CheckSystemVersion(11, 0);
 
-        public static nfloat BounceOverflowMargin { get; set; } = 20.0f;
-
-        public static bool Ios10 { get; } = UIDevice.CurrentDevice.CheckSystemVersion(10, 0);
+        public static bool AtLeastIos13 { get; } = UIDevice.CurrentDevice.CheckSystemVersion(13, 0);
         
-        public static bool Ios11 { get; } = UIDevice.CurrentDevice.CheckSystemVersion(11, 0);
-
-        public static bool Ios13 { get; } = UIDevice.CurrentDevice.CheckSystemVersion(13, 0);
+        public static class Defaults
+        {
+            public static nfloat CollapsedHeight { get; set; } = 68.0f;
         
+            public static nfloat PartialRevealHeight { get; set; } = 264.0f;
+        
+            public static nfloat PanelWidth { get; set; } = 325.0f;
+
+            public static nfloat BounceOverflowMargin { get; set; } = 20.0f;
+
+            public static UIEdgeInsets PanelInsets { get; set; } = new UIEdgeInsets(10, 10, 10, 10);
+
+            public static UIEdgeInsets CompactInsets { get; set; } = new UIEdgeInsets(10, 10, 10, 10);
+
+            public static nfloat CompactWidth { get; set; } = 325.0f;
+
+            public static nfloat DrawerTopInset { get; set; } = 20.0f;
+            
+            public static nfloat DrawerCornerRadius { get; set; } = 13.0f;
+            
+            public static float ShadowOpacity { get; set; } = 0.1f;
+            
+            public static float ShadowRadius { get; set; } = 3.0f;
+            
+            public static CGSize ShadowOffset { get; set; } = new CGSize(0, -3);
+
+            public static UIColor BackgroundDimmingColor { get; set; } = UIColor.Black;
+
+            public static float BackgroundDimmingOpacity { get; set; } = 0.5f;
+            
+            public static bool DelaysContentTouches { get; set; } = true;
+
+            public static bool CanCancelContentTouches { get; set; } = true;
+
+            public static PulleyDisplayMode DisplayMode { get; set; } = PulleyDisplayMode.Drawer;
+            
+            public static PulleyPosition DrawerPosition { get; set; } = PulleyPosition.Collapsed;
+
+            public static PulleyPanelCornerPlacement PanelCornerPlacement { get; set; } = PulleyPanelCornerPlacement.TopLeft;
+            
+            public static PulleyCompactCornerPlacement CompactCornerPlacement { get; set; } = PulleyCompactCornerPlacement.BottomLeft;
+
+            public static bool AllowsUserDrawerPositionChange { get; set; } = true;
+        
+            public static double AnimationDuration { get; set; } = 0.3;
+            
+            public static double AnimationDelay { get; set; } = 0;
+
+            public static nfloat AnimationSpringDamping { get; set; } = 0.75f;
+
+            public static nfloat AnimationSpringInitialVelocity { get; set; } = 0;
+
+            public static bool AdjustDrawerHorizontalInsetToSafeArea { get; set; } = true;
+            
+            public static UIViewAnimationOptions AnimationOptions { get; set; } = UIViewAnimationOptions.CurveEaseOut;
+
+            public static nfloat Threshold { get; set; } = 20;
+            
+            public static PulleySnapMode SnapMode { get; set; } = PulleySnapMode.NearestPositionUnlessExceeded;
+        
+            public static UIBlurEffectStyle ModernBlurEffectStyle { get; set; } = UIBlurEffectStyle.SystemUltraThinMaterial;
+        
+            public static UIBlurEffectStyle LegacyBlurEffectStyle { get; set; } = UIBlurEffectStyle.ExtraLight;
+        }
+
         private static PulleyPosition[] PulleyPositionAll { get; } =
         {
             PulleyPosition.Collapsed,
@@ -43,9 +101,11 @@ namespace Xamarin.Pulley.Ios
         public bool IsPhone { get; } = UIDevice.CurrentDevice.UserInterfaceIdiom == UIUserInterfaceIdiom.Phone;
 
         [Outlet]
+        // ReSharper disable once UnusedAutoPropertyAccessor.Local
         UIView PrimaryContentContainerView { get; set; }
         
         [Outlet]
+        // ReSharper disable once UnusedAutoPropertyAccessor.Local
         UIView DrawerContentContainerView { get; set; }
         
         // Internal
@@ -96,10 +156,9 @@ namespace Xamarin.Pulley.Ios
         
         private UIViewController _DrawerContentViewController;
 
-        public UIViewController DrawerContentViewController
+        private UIViewController DrawerContentViewController
         {
-            get => _DrawerContentViewController;
-            private set
+            set
             {
                 _DrawerContentViewController?.WillMoveToParentViewController(null);
                 _DrawerContentViewController?.View?.RemoveFromSuperview();
@@ -155,13 +214,18 @@ namespace Xamarin.Pulley.Ios
             ? 0f 
             : _DrawerScrollView.Bounds.Height;
 
-        public UIBlurEffectStyle DefaultBlurEffect => Ios13
-            ? UIBlurEffectStyle.SystemUltraThinMaterial
-            : UIBlurEffectStyle.ExtraLight;
+        public UIBlurEffectStyle DefaultBlurEffect
+        {
+            get => AtLeastIos13
+                ? Defaults.ModernBlurEffectStyle
+                : Defaults.LegacyBlurEffectStyle;
+            set => DrawerBackgroundVisualEffectView = new UIVisualEffectView(UIBlurEffect.FromStyle(value));
+        }
 
-        
-        private UIVisualEffectView _DrawerBackgroundVisualEffectView 
-            = new UIVisualEffectView(UIBlurEffect.FromStyle(UIBlurEffectStyle.Regular));
+        private UIVisualEffectView _DrawerBackgroundVisualEffectView =
+            new UIVisualEffectView(UIBlurEffect.FromStyle(AtLeastIos13 
+                ? Defaults.ModernBlurEffectStyle : Defaults.LegacyBlurEffectStyle));
+
         public UIVisualEffectView DrawerBackgroundVisualEffectView
         {
             get => _DrawerBackgroundVisualEffectView;
@@ -180,11 +244,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private nfloat _DrawerTopInset = 325.0f; 
+        private nfloat _DrawerTopInset = Defaults.DrawerTopInset; 
         
         public nfloat DrawerTopInset
         {
-            get => _DrawerTopInset;
             set
             {
                 if (_DrawerTopInset != value && IsViewLoaded)
@@ -193,11 +256,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private UIEdgeInsets _PanelInsets = new UIEdgeInsets(10, 10, 10, 10); 
+        private UIEdgeInsets _PanelInsets = Defaults.PanelInsets;
         
         public UIEdgeInsets PanelInsets
         {
-            get => _PanelInsets;
             set
             {
                 if (_PanelInsets != value && IsViewLoaded)
@@ -206,11 +268,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private nfloat _PanelWidth = 325.0f; 
+        private nfloat _PanelWidth = Defaults.PanelWidth; 
         
         public nfloat PanelWidth
         {
-            get => _PanelWidth;
             set
             {
                 if (_PanelWidth != value && IsViewLoaded)
@@ -219,11 +280,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private UIEdgeInsets _CompactInsets = new UIEdgeInsets(10, 10, 10, 10); 
+        private UIEdgeInsets _CompactInsets = Defaults.CompactInsets;
         
         public UIEdgeInsets CompactInsets
         {
-            get => _CompactInsets;
             set
             {
                 if (_CompactInsets != value && IsViewLoaded)
@@ -231,12 +291,11 @@ namespace Xamarin.Pulley.Ios
                 _CompactInsets = value;
             }
         }
-        
-        private nfloat _CompactWidth = 325.0f; 
+
+        private nfloat _CompactWidth = Defaults.CompactWidth;
         
         public nfloat CompactWidth
         {
-            get => _CompactWidth;
             set
             {
                 if (_CompactWidth != value && IsViewLoaded)
@@ -244,12 +303,11 @@ namespace Xamarin.Pulley.Ios
                 _CompactWidth = value;
             }
         }
-        
-        private nfloat _DrawerCornerRadius = 13.0f; 
+
+        private nfloat _DrawerCornerRadius = Defaults.DrawerCornerRadius; 
         
         public nfloat DrawerCornerRadius
         {
-            get => _DrawerCornerRadius;
             set
             {
                 if (_DrawerCornerRadius != value && IsViewLoaded)
@@ -262,12 +320,11 @@ namespace Xamarin.Pulley.Ios
                 _DrawerCornerRadius = value;
             }
         }
-        
-        private float _ShadowOpacity = 0.1f; 
+
+        private float _ShadowOpacity = Defaults.ShadowOpacity; 
         
         public float ShadowOpacity
         {
-            get => _ShadowOpacity;
             set
             {
                 if (Math.Abs(_ShadowOpacity - value) > 0.01 && IsViewLoaded)
@@ -280,11 +337,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private nfloat _ShadowRadius = 3.0f; 
+        private nfloat _ShadowRadius = Defaults.ShadowRadius; 
         
         public nfloat ShadowRadius
         {
-            get => _ShadowRadius;
             set
             {
                 if (_ShadowRadius != value && IsViewLoaded)
@@ -297,11 +353,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private CGSize _ShadowOffset = new CGSize(0, -3); 
+        private CGSize _ShadowOffset = Defaults.ShadowOffset; 
         
         public CGSize ShadowOffset
         {
-            get => _ShadowOffset;
             set
             {
                 if (_ShadowOffset != value && IsViewLoaded)
@@ -314,11 +369,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
 
-        private UIColor _BackgroundDimmingColor = UIColor.Black;
+        private UIColor _BackgroundDimmingColor = Defaults.BackgroundDimmingColor;
 
         public UIColor BackgroundDimmingColor
         {
-            get => _BackgroundDimmingColor;
             set
             {
                 _BackgroundDimmingColor = value;
@@ -328,11 +382,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private nfloat _BackgroundDimmingOpacity = 0.5f;
+        private nfloat _BackgroundDimmingOpacity = Defaults.BackgroundDimmingOpacity;
 
         public nfloat BackgroundDimmingOpacity
         {
-            get => _BackgroundDimmingOpacity;
             set
             {
                 _BackgroundDimmingOpacity = value;
@@ -342,11 +395,10 @@ namespace Xamarin.Pulley.Ios
         }
         
         
-        private bool _DelaysContentTouches = true;
+        private bool _DelaysContentTouches = Defaults.DelaysContentTouches;
 
         public bool DelaysContentTouches
         {
-            get => _DelaysContentTouches;
             set
             {
                 _DelaysContentTouches = value;
@@ -355,11 +407,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private bool _CanCancelContentTouches = true;
+        private bool _CanCancelContentTouches = Defaults.CanCancelContentTouches;
 
         public bool CanCancelContentTouches
         {
-            get => _CanCancelContentTouches;
             set
             {
                 _CanCancelContentTouches = value;
@@ -367,14 +418,11 @@ namespace Xamarin.Pulley.Ios
                     _DrawerScrollView.CanCancelContentTouches = _CanCancelContentTouches;
             }
         }
-
-        public PulleyPosition InitialDrawerPosition { get; set; } = PulleyPosition.Collapsed;
         
-        private PulleyDisplayMode _DisplayMode = PulleyDisplayMode.Drawer;
+        private PulleyDisplayMode _DisplayMode = Defaults.DisplayMode;
 
         public PulleyDisplayMode DisplayMode
         {
-            get => _DisplayMode;
             set
             {
                 if (_DisplayMode !=value && IsViewLoaded)
@@ -383,11 +431,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private PulleyPanelCornerPlacement _PanelCornerPlacement = PulleyPanelCornerPlacement.TopLeft;
+        private PulleyPanelCornerPlacement _PanelCornerPlacement = Defaults.PanelCornerPlacement;
 
         public PulleyPanelCornerPlacement PanelCornerPlacement
         {
-            get => _PanelCornerPlacement;
             set
             {
                 if (_PanelCornerPlacement !=value && IsViewLoaded)
@@ -396,11 +443,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private PulleyCompactCornerPlacement _CompactCornerPlacement = PulleyCompactCornerPlacement.BottomLeft;
+        private PulleyCompactCornerPlacement _CompactCornerPlacement = Defaults.CompactCornerPlacement;
 
         public PulleyCompactCornerPlacement CompactCornerPlacement
         {
-            get => _CompactCornerPlacement;
             set
             {
                 if (_CompactCornerPlacement !=value && IsViewLoaded)
@@ -409,11 +455,10 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        private bool _AllowsUserDrawerPositionChange = true;
+        private bool _AllowsUserDrawerPositionChange = Defaults.AllowsUserDrawerPositionChange;
 
         public bool AllowsUserDrawerPositionChange
         {
-            get => _AllowsUserDrawerPositionChange;
             set
             {
                 _AllowsUserDrawerPositionChange = value;
@@ -421,19 +466,18 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        public double AnimationDuration { get; set; } = 0.3;
+        public double AnimationDuration { get; set; } = Defaults.AnimationDuration;
         
-        public double AnimationDelay { get; set; } = 0;
+        public double AnimationDelay { get; set; } = Defaults.AnimationDelay;
 
-        public nfloat AnimationSpringDamping { get; set; } = 0;
+        public nfloat AnimationSpringDamping { get; set; } = Defaults.AnimationSpringDamping;
 
-        public nfloat AnimationSpringInitialVelocity { get; set; } = 0;
+        public nfloat AnimationSpringInitialVelocity { get; set; } = Defaults.AnimationSpringInitialVelocity;
         
-        private bool _AdjustDrawerHorizontalInsetToSafeArea = true;
+        private bool _AdjustDrawerHorizontalInsetToSafeArea = Defaults.AdjustDrawerHorizontalInsetToSafeArea;
 
         public bool AdjustDrawerHorizontalInsetToSafeArea
         {
-            get => _AdjustDrawerHorizontalInsetToSafeArea;
             set
             {
                 _AdjustDrawerHorizontalInsetToSafeArea = value;
@@ -442,11 +486,11 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
-        public UIViewAnimationOptions AnimationOptions { get; set; } = UIViewAnimationOptions.CurveEaseOut;
+        public UIViewAnimationOptions AnimationOptions { get; set; } = Defaults.AnimationOptions;
 
-        public nfloat Threshold { get; set; } = 20;
+        public nfloat Threshold { get; set; } = Defaults.Threshold;
         
-        public PulleySnapMode SnapMode { get; set; } = PulleySnapMode.NearestPositionUnlessExceeded;
+        public PulleySnapMode SnapMode { get; set; } = Defaults.SnapMode;
 
         //UIFeedbackGenerator
         public object FeedbackGenerator { get; set; }
@@ -460,7 +504,7 @@ namespace Xamarin.Pulley.Ios
                 nfloat safeAreaLeftInset = 0;
                 nfloat safeAreaRightInset = 0;
         
-                if (Ios11 && View != null)
+                if (AtLeastIos11 && View != null)
                 {
                     safeAreaBottomInset = View.SafeAreaInsets.Bottom;
                     safeAreaLeftInset = View.SafeAreaInsets.Left;
@@ -502,7 +546,6 @@ namespace Xamarin.Pulley.Ios
         
         public PulleyPosition[] SupportedPositions
         {
-            get => _SupportedPositions;
             set
             {
                 if (!IsViewLoaded)
@@ -538,7 +581,6 @@ namespace Xamarin.Pulley.Ios
 
         public PulleyDisplayMode CurrentDisplayMode
         {
-            get => _CurrentDisplayMode;
             set
             {
                 if(value != _CurrentDisplayMode && IsViewLoaded)
@@ -573,7 +615,7 @@ namespace Xamarin.Pulley.Ios
                 var height = View.Bounds.Height - safeAreaTopInset;
                 if(_CurrentDisplayMode == PulleyDisplayMode.Panel)
                 {
-                    height -= _PanelInsets.Top + BounceOverflowMargin;
+                    height -= _PanelInsets.Top + Defaults.BounceOverflowMargin;
                     height -= _PanelInsets.Bottom + safeAreaBottomInset;
                 }
                 else if (_CurrentDisplayMode == PulleyDisplayMode.Drawer)
@@ -690,7 +732,7 @@ namespace Xamarin.Pulley.Ios
             }
 
             EnforceCanScrollDrawer();
-            SetDrawerPosition(InitialDrawerPosition, false);
+            SetDrawerPosition(Defaults.DrawerPosition, false);
             Scrolled(_DrawerScrollView);
             
             Delegate?.DrawerDisplayModeDidChange(this);
@@ -749,8 +791,9 @@ namespace Xamarin.Pulley.Ios
             nfloat lowestStop;
             if(displayModeForCurrentLayout == PulleyDisplayMode.Drawer)
             {
-                if (Ios11)
-                    _DrawerScrollView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.ScrollableAxes;
+                if (AtLeastIos11)
+                    _DrawerScrollView.ContentInsetAdjustmentBehavior =
+                        UIScrollViewContentInsetAdjustmentBehavior.ScrollableAxes;
                 else
                 {
                     AutomaticallyAdjustsScrollViewInsets = false;
@@ -789,13 +832,13 @@ namespace Xamarin.Pulley.Ios
                 lowestStop = GetStopList().Min();
 
                 _DrawerContentContainer.Frame = new CGRect(0, _DrawerScrollView.Bounds.Height - lowestStop,
-                    _DrawerScrollView.Bounds.Width, _DrawerScrollView.Bounds.Height + BounceOverflowMargin);
+                    _DrawerScrollView.Bounds.Width, _DrawerScrollView.Bounds.Height + Defaults.BounceOverflowMargin);
                 if (_DrawerBackgroundVisualEffectView != null)
                     _DrawerBackgroundVisualEffectView.Frame = _DrawerContentContainer.Frame;
                 _DrawerShadowView.Frame = _DrawerContentContainer.Frame;
                 _DrawerScrollView.ContentSize = new CGSize(_DrawerScrollView.Bounds.Width,
                     _DrawerScrollView.Bounds.Height - lowestStop + _DrawerScrollView.Bounds.Height -
-                    safeAreaBottomInset + (BounceOverflowMargin - 5.0));
+                    safeAreaBottomInset + (Defaults.BounceOverflowMargin - 5.0));
                 
                 // Update rounding Mask and shadows
                 var borderPath = DrawerMaskingPath(UIRectCorner.AllCorners).CGPath;
@@ -821,8 +864,9 @@ namespace Xamarin.Pulley.Ios
             }
             else
             {
-                if (Ios11)
-                    _DrawerScrollView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.ScrollableAxes;
+                if (AtLeastIos11)
+                    _DrawerScrollView.ContentInsetAdjustmentBehavior =
+                        UIScrollViewContentInsetAdjustmentBehavior.ScrollableAxes;
                 else
                 {
                     AutomaticallyAdjustsScrollViewInsets = false;
@@ -830,13 +874,15 @@ namespace Xamarin.Pulley.Ios
                     _DrawerScrollView.ScrollIndicatorInsets = new UIEdgeInsets(0, 0, 0, 0);
                 }
 
-                var collapsedHeight = PulleyDefaultCollapsedHeight;
-                var partialRevealHeight = PulleyDefaultPartialRevealHeight;
+                var collapsedHeight = Defaults.CollapsedHeight;
+                var partialRevealHeight = Defaults.PartialRevealHeight;
                 
                 if(_DrawerContentViewController is IPulleyDrawerViewControllerDelegate drawerVCCompliant)
                 {
-                    collapsedHeight = drawerVCCompliant.CollapsedDrawerHeight(safeAreaBottomInset) ?? PulleyDefaultCollapsedHeight;
-                    partialRevealHeight = drawerVCCompliant.PartialRevealDrawerHeight(safeAreaBottomInset) ?? PulleyDefaultPartialRevealHeight;
+                    collapsedHeight = drawerVCCompliant.CollapsedDrawerHeight(safeAreaBottomInset) 
+                                      ?? Defaults.CollapsedHeight;
+                    partialRevealHeight = drawerVCCompliant.PartialRevealDrawerHeight(safeAreaBottomInset) 
+                                          ?? Defaults.PartialRevealHeight;
                 }
                 
                 nfloat xOrigin;
@@ -868,7 +914,7 @@ namespace Xamarin.Pulley.Ios
                         : View.Bounds.GetMaxX() - (safeAreaRightInset + _PanelInsets.Right) - _PanelWidth;
                     yOrigin = _PanelCornerPlacement == PulleyPanelCornerPlacement.BottomLeft || _PanelCornerPlacement == PulleyPanelCornerPlacement.BottomRight 
                         ? _PanelInsets.Top + safeAreaTopInset
-                        : _PanelInsets.Top + safeAreaTopInset + BounceOverflowMargin;
+                        : _PanelInsets.Top + safeAreaTopInset + Defaults.BounceOverflowMargin;
                 }
                 
                 var width = displayModeForCurrentLayout == PulleyDisplayMode.Compact ? _CompactWidth : _PanelWidth;
@@ -934,15 +980,15 @@ namespace Xamarin.Pulley.Ios
         {
             var drawerStops = new List<nfloat>();
 
-            var collapsedHeight = PulleyDefaultCollapsedHeight;
-            var partialRevealHeight = PulleyDefaultPartialRevealHeight;
+            var collapsedHeight = Defaults.CollapsedHeight;
+            var partialRevealHeight = Defaults.PartialRevealHeight;
 
             if(_DrawerContentViewController is IPulleyDrawerViewControllerDelegate drawerVCCompliant)
             {
                 collapsedHeight = drawerVCCompliant.CollapsedDrawerHeight(
-                PulleySafeAreaInsets.Bottom) ?? PulleyDefaultCollapsedHeight;
+                PulleySafeAreaInsets.Bottom) ?? Defaults.CollapsedHeight;
                 partialRevealHeight = drawerVCCompliant.PartialRevealDrawerHeight(
-                PulleySafeAreaInsets.Bottom) ?? PulleyDefaultPartialRevealHeight;
+                PulleySafeAreaInsets.Bottom) ?? Defaults.PartialRevealHeight;
             }
 
             if (_SupportedPositions.Contains(PulleyPosition.Collapsed))
@@ -1006,13 +1052,13 @@ namespace Xamarin.Pulley.Ios
         
         public void PrepareFeedbackGenerator()
         {
-            if (Ios10 && FeedbackGenerator is UIFeedbackGenerator generator)
+            if (AtLeastIos10 && FeedbackGenerator is UIFeedbackGenerator generator)
                 generator.Prepare();
         }
         
         public void TriggerFeedbackGenerator()
         {
-            if (!Ios10)
+            if (!AtLeastIos10)
                 return;
 
             PrepareFeedbackGenerator();
@@ -1056,7 +1102,7 @@ namespace Xamarin.Pulley.Ios
                 var positionOffset = (nfloat) (factor / 128.0) * bounceHeight;
                 values.Add(NSNumber.FromNFloat(_DrawerScrollView.Frame.Y + positionOffset));
             }
-            
+
             var animation = CAKeyFrameAnimation.FromKeyPath("Bounds.origin.y");
             animation.RepeatCount = 1;
             animation.Duration = (32.0 / 30.0) * speedMultiplier;
@@ -1085,7 +1131,7 @@ namespace Xamarin.Pulley.Ios
             var lowestStop = GetStopList().Min();
 
             _DrawerContentContainer.Frame = new CGRect(0.0, _DrawerScrollView.Bounds.Height - lowestStop,
-                _DrawerScrollView.Bounds.Width, _DrawerScrollView.ContentOffset.Y + lowestStop + BounceOverflowMargin);
+                _DrawerScrollView.Bounds.Width, _DrawerScrollView.ContentOffset.Y + lowestStop + Defaults.BounceOverflowMargin);
             if (_DrawerBackgroundVisualEffectView != null)
                 _DrawerBackgroundVisualEffectView.Frame = _DrawerContentContainer.Frame;
             _DrawerShadowView.Frame = _DrawerContentContainer.Frame;
@@ -1117,15 +1163,15 @@ namespace Xamarin.Pulley.Ios
             }
             _DrawerPosition = position;
 
-            var collapsedHeight = PulleyDefaultCollapsedHeight;
-            var partialRevealHeight = PulleyDefaultPartialRevealHeight;
+            var collapsedHeight = Defaults.CollapsedHeight;
+            var partialRevealHeight = Defaults.PartialRevealHeight;
  
             if(_DrawerContentViewController is IPulleyDrawerViewControllerDelegate drawerVCCompliant)
             {
                 collapsedHeight = drawerVCCompliant.CollapsedDrawerHeight(
-                    PulleySafeAreaInsets.Bottom) ?? PulleyDefaultCollapsedHeight;
+                    PulleySafeAreaInsets.Bottom) ?? Defaults.CollapsedHeight;
                 partialRevealHeight = drawerVCCompliant.PartialRevealDrawerHeight(
-                    PulleySafeAreaInsets.Bottom) ?? PulleyDefaultPartialRevealHeight;
+                    PulleySafeAreaInsets.Bottom) ?? Defaults.PartialRevealHeight;
             }
 
             nfloat stopToMoveTo;
@@ -1224,7 +1270,8 @@ namespace Xamarin.Pulley.Ios
         public void SetDrawerContentViewController(
             UIViewController controller, PulleyPosition? position = null, bool animated = true, Action<bool> completion = null)
         {
-            if (controller?.View == null)
+            controller.LoadViewIfNeeded();
+            if (controller.View == null)
                 return;
 
             controller.View.Frame = _DrawerContentContainer.Bounds;
@@ -1300,7 +1347,7 @@ namespace Xamarin.Pulley.Ios
         {
             base.ViewWillTransitionToSize(toSize, coordinator);
 
-            if (Ios10)
+            if (AtLeastIos10)
                 coordinator.NotifyWhenInteractionChanges(context => { SetDrawerPosition(_DrawerPosition, false); });
             else
                 coordinator.NotifyWhenInteractionEndsUsingBlock(context => { SetDrawerPosition(_DrawerPosition, false); });
@@ -1371,21 +1418,21 @@ namespace Xamarin.Pulley.Ios
                 : _PrimaryContentContainer;
         }
         
-        [SuppressMessage("ReSharper", "UnusedParameter.Global")]
+        [Export("scrollViewDidEndDragging:willDecelerate:")]
         public virtual void DraggingEnded(UIScrollView scrollView, bool willDecelerate)
         {
             if (!ReferenceEquals(scrollView, _DrawerScrollView))
                 return;
 
-            var collapsedHeight = PulleyDefaultCollapsedHeight;
-            var partialRevealHeight = PulleyDefaultPartialRevealHeight;
+            var collapsedHeight = Defaults.CollapsedHeight;
+            var partialRevealHeight = Defaults.PartialRevealHeight;
             
             if(_DrawerContentViewController is IPulleyDrawerViewControllerDelegate drawerVCCompliant)
             {
                 collapsedHeight = drawerVCCompliant.CollapsedDrawerHeight(
-                    PulleySafeAreaInsets.Bottom) ?? PulleyDefaultCollapsedHeight;
+                    PulleySafeAreaInsets.Bottom) ?? Defaults.CollapsedHeight;
                 partialRevealHeight = drawerVCCompliant.PartialRevealDrawerHeight(
-                    PulleySafeAreaInsets.Bottom) ?? PulleyDefaultPartialRevealHeight;
+                    PulleySafeAreaInsets.Bottom) ?? Defaults.PartialRevealHeight;
             }
 
             var drawerStops = new List<nfloat>();
@@ -1453,7 +1500,8 @@ namespace Xamarin.Pulley.Ios
                             
                         foreach(var position in positions.Where(p => p != PulleyPosition.Closed))
                         {
-                            if((int) position > (int) _DrawerPosition)
+                            if(distance < 0 && (int) position > (int) _DrawerPosition ||
+                               distance > 0 && (int) position < (int) _DrawerPosition)
                             {
                                 positionToSnapTo = position;
                                 break;
@@ -1466,12 +1514,14 @@ namespace Xamarin.Pulley.Ios
             }
         }
         
+        [Export("scrollViewWillBeginDragging:")]
         public void DraggingStarted(UIScrollView scrollView)
         {
             if(ReferenceEquals(scrollView, _DrawerScrollView))
                 _IsChangingDrawerPosition = true;
         }
         
+        [Export("scrollViewWillEndDragging:withVelocity:targetContentOffset:")]
         public virtual void WillEndDragging(UIScrollView scrollView, CGPoint velocity, ref CGPoint targetContentOffset)
         {
             PrepareFeedbackGenerator();
@@ -1484,13 +1534,14 @@ namespace Xamarin.Pulley.Ios
             _IsChangingDrawerPosition = false;
         }
         
+        [Export("scrollViewDidScroll:")]
         public virtual void Scrolled(UIScrollView scrollView)
         {
             if (!ReferenceEquals(scrollView, _DrawerScrollView))
                 return;
 
             var partialRevealHeight = (_DrawerContentViewController as IPulleyDrawerViewControllerDelegate)
-                ?.PartialRevealDrawerHeight(PulleySafeAreaInsets.Bottom) ?? PulleyDefaultPartialRevealHeight;
+                ?.PartialRevealDrawerHeight(PulleySafeAreaInsets.Bottom) ?? Defaults.PartialRevealHeight;
 
             var lowestStop = GetStopList().Min();
 
